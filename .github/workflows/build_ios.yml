@@ -3,7 +3,7 @@ name: Build iOS No-Codesign
 on:
   push:
     branches: [ "main", "master" ]
-  workflow_dispatch:
+  workflow_dispatch: # Is button se aap GitHub web UI se manually bhi build trigger kar sakte hain
 
 jobs:
   build-ios:
