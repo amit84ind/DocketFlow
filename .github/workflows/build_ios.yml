@@ -13,33 +13,30 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
+          cache: false
 
-      - name: Install Dependencies
-        run: flutter pub get
+      - name: Force Clean & Fetch
+        run: |
+          flutter clean
+          flutter pub get
 
-      - name: Build iOS Application (Unsigned)
+      - name: Build Fresh iOS Unsigned
         run: flutter build ios --no-codesign --release
 
       - name: Package Payload to .ipa
         run: |
+          rm -rf Payload DocketFlow_fresh.ipa
           mkdir -p Payload
-          mv build/ios/iphoneos/Runner.app Payload/
-          zip -r -9 DocketFlow_unsigned.ipa Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -r -9 DocketFlow_fresh.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DocketFlow-iOS-Unsigned
-          path: DocketFlow_unsigned.ipa
-          retention-days: 7
+          name: DocketFlow-iOS-Fresh
+          path: DocketFlow_fresh.ipa
+          retention-days: 1
