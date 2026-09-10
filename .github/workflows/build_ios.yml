@@ -36,13 +36,25 @@ jobs:
           flutter clean
           flutter pub get
 
-      - name: Build iOS Application (No Codesign)
-        run: flutter build ios --no-codesign --release
+      - name: Prepare iOS Config & Frameworks
+        run: flutter build ios --config-only --no-codesign
 
-      - name: Package .ipa Payload
+      - name: Build Unsigned iOS App via xcodebuild
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+      - name: Package Payload to .ipa
         run: |
           mkdir -p Payload
-          cp -R build/ios/iphoneos/Runner.app Payload/
+          cp -R build/ios/Build/Products/Release-iphoneos/Runner.app Payload/
           zip -r -9 DocketFlow.ipa Payload
 
       - name: Upload .ipa Artifact to GitHub
