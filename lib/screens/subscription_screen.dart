@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -11,93 +9,156 @@ class SubscriptionScreen extends StatefulWidget {
 }
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
-  final TextEditingController _utrController = TextEditingController();
-  final String upiId = "yourname@upi"; // Replace with your static UPI ID
-  final String whatsappNumber = "+919876543210"; // Replace with your WhatsApp number
+  bool _isTrialActive = false;
 
-  void _activateSubscription() async {
-    final utr = _utrController.text.trim();
-    if (utr.length != 12) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a valid 12-digit UTR/UPI Ref ID")),
-      );
-      return;
-    }
+  @override
+  void initState() {
+    super.initState();
+    _checkTrialStatus();
+  }
 
+  void _checkTrialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isTrialActive = prefs.getBool('is_subscribed') ?? false;
+    });
+  }
+
+  void _activateTrial() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_subscribed', true);
-    await prefs.setString('utr_submitted', utr);
+    await prefs.setBool('is_trial_active', true);
+
+    setState(() {
+      _isTrialActive = true;
+    });
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Access Activated! Verification in progress.")),
+        const SnackBar(
+          content: Text("Free Trial & Test Access Activated!"),
+          backgroundColor: Colors.green,
+        ),
       );
-      Navigator.pop(context);
-    }
-  }
-
-  void _openWhatsApp() async {
-    final url = Uri.parse("https://wa.me/$whatsappNumber?text=Hi%2C%20I%20have%20paid%20Rs.100%20for%20DocketFlow.%20UTR:%20${_utrController.text}");
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final upiUri = "upi://pay?pa=$upiId&pn=DocketFlow&am=100&cu=INR&tn=Annual_Pass";
-
     return Scaffold(
-      appBar: AppBar(title: const Text("DocketFlow Annual Pass")),
+      appBar: AppBar(title: const Text("DocketFlow Test & Trial")),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            const Icon(
+              Icons.card_giftcard_rounded,
+              size: 72,
+              color: Colors.blueAccent,
+            ),
+            const SizedBox(height: 16),
             const Text(
-              "₹100 / Year",
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-            ),
-            const Text("Unlimited On-Device Inspection Tracking • 100% Private"),
-            const SizedBox(height: 20),
-            Center(
-              child: QrImageView(
-                data: upiUri,
-                version: QrVersions.auto,
-                size: 220.0,
+              "Free Test & Trial Mode",
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
               ),
             ),
-            const SizedBox(height: 10),
-            Text("Scan via GPay / PhonePe / Paytm", style: TextStyle(color: Colors.grey.shade600)),
-            const Divider(height: 40),
-            TextField(
-              controller: _utrController,
-              keyboardType: TextInputType.number,
-              maxLength: 12,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: "12-Digit UTR / Transaction Ref No.",
-                hintText: "e.g. 423987123456",
+            const SizedBox(height: 8),
+            const Text(
+              "No payment required for test & trial mode. Enjoy full access to all DocketFlow features during testing.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: Colors.grey),
+            ),
+            const SizedBox(height: 32),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Icon(
+                        _isTrialActive
+                            ? Icons.check_circle
+                            : Icons.check_circle_outline,
+                        color: _isTrialActive ? Colors.green : Colors.blue,
+                        size: 30,
+                      ),
+                      title: Text(
+                        _isTrialActive
+                            ? "Test & Trial Active"
+                            : "Unlimited Inspection Tracking",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        _isTrialActive
+                            ? "Full features unlocked. No payment required."
+                            : "100% Private, On-Device Parsing",
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _activateSubscription,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                child: const Text("Submit & Activate", style: TextStyle(color: Colors.white, fontSize: 16)),
+            const SizedBox(height: 32),
+            if (!_isTrialActive)
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _activateTrial,
+                  icon: const Icon(Icons.flash_on, color: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  label: const Text(
+                    "Start Free Trial",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.shade300),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.verified, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text(
+                      "Trial Active — Free Access Enabled",
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              onPressed: _openWhatsApp,
-              icon: const Icon(Icons.chat, color: Colors.green),
-              label: const Text("Verify on WhatsApp"),
-            )
           ],
         ),
       ),
     );
   }
 }
+

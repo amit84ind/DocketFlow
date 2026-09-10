@@ -20,7 +20,7 @@ class DBHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE inspections (
@@ -28,11 +28,33 @@ class DBHelper {
             title TEXT,
             date TEXT,
             location TEXT,
+            vendorName TEXT,
+            clientName TEXT,
+            itemDetails TEXT,
+            attachments TEXT,
             rawSnippet TEXT,
             timestamp INTEGER,
-            isCompleted INTEGER
+            isCompleted INTEGER,
+            source TEXT DEFAULT 'Outlook',
+            priority TEXT DEFAULT 'Normal'
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          try {
+            await db.execute("ALTER TABLE inspections ADD COLUMN source TEXT DEFAULT 'Outlook'");
+            await db.execute("ALTER TABLE inspections ADD COLUMN priority TEXT DEFAULT 'Normal'");
+          } catch (_) {}
+        }
+        if (oldVersion < 3) {
+          try {
+            await db.execute("ALTER TABLE inspections ADD COLUMN vendorName TEXT DEFAULT 'Not Specified'");
+            await db.execute("ALTER TABLE inspections ADD COLUMN clientName TEXT DEFAULT 'Not Specified'");
+            await db.execute("ALTER TABLE inspections ADD COLUMN itemDetails TEXT DEFAULT 'General Inspection'");
+            await db.execute("ALTER TABLE inspections ADD COLUMN attachments TEXT DEFAULT 'No attachments'");
+          } catch (_) {}
+        }
       },
     );
   }
@@ -56,6 +78,11 @@ class DBHelper {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<int> deleteInspection(int id) async {
+    final db = await instance.database;
+    return await db.delete('inspections', where: 'id = ?', whereArgs: [id]);
   }
 
   // 7-Day Automatic Purge Logic

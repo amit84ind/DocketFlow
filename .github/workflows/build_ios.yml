@@ -1,42 +1,53 @@
-name: Build iOS No-Codesign
+name: Build iOS IPA (GitHub Actions)
 
 on:
   push:
     branches: [ "main", "master" ]
-  workflow_dispatch: # Is button se aap GitHub web UI se manually bhi build trigger kar sakte hain
+  workflow_dispatch:
 
 jobs:
-  build-ios:
+  build-ios-ipa:
+    name: Build Unsigned iOS .ipa
     runs-on: macos-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Configure Git User
+        run: |
+          git config --global user.name "amit84ind"
+          git config --global user.email "amit84ind@gmail.com"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: false
+          cache: true
 
-      - name: Force Clean & Fetch
+      - name: Install Dependencies
         run: |
           flutter clean
           flutter pub get
 
-      - name: Build Fresh iOS Unsigned
+      - name: Build iOS Application (No Codesign)
         run: flutter build ios --no-codesign --release
 
-      - name: Package Payload to .ipa
+      - name: Package .ipa Payload
         run: |
-          rm -rf Payload DocketFlow_fresh.ipa
           mkdir -p Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -r -9 DocketFlow_fresh.ipa Payload
+          zip -r -9 DocketFlow.ipa Payload
 
-      - name: Upload IPA Artifact
+      - name: Upload .ipa Artifact to GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: DocketFlow-iOS-Fresh
-          path: DocketFlow_fresh.ipa
-          retention-days: 1
+          name: DocketFlow-iOS-IPA
+          path: DocketFlow.ipa
+          retention-days: 14
