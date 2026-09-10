@@ -213,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
             await DBHelper.instance.insertInspection(item);
             _loadSettingsAndData();
             if (mounted) {
-              Navigator.pop(ctx);
+              Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text("Inspection Docket Successfully Retracted & Added!"),
@@ -432,7 +432,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ChoiceChip(
                     label: Text(filter),
                     selected: selected,
-                    selectedColor: Colors.blueAccent.withOpacity(0.2),
+                    selectedColor: Colors.blueAccent.withAlpha(51),
                     onSelected: (val) {
                       if (val) {
                         setState(() {
@@ -503,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
                               color: item.priority == 'High'
-                                  ? Colors.redAccent.withOpacity(0.5)
+                                  ? Colors.redAccent.withAlpha(128)
                                   : Colors.transparent,
                               width: 1.5,
                             ),
@@ -675,7 +675,7 @@ class _SmartEmailImportSheetState extends State<_SmartEmailImportSheet> {
 
   Future<void> _autoCheckClipboard() async {
     try {
-      final data = await Clipboard.getData(Clipboard.kText);
+      final data = await Clipboard.getData('text/plain');
       if (data != null && data.text != null && data.text!.trim().length > 10) {
         final text = data.text!.trim();
         final lines = text.split('\n');
@@ -691,7 +691,7 @@ class _SmartEmailImportSheetState extends State<_SmartEmailImportSheet> {
   }
 
   Future<void> _pasteFromClipboard() async {
-    final data = await Clipboard.getData(Clipboard.kText);
+    final data = await Clipboard.getData('text/plain');
     if (data != null && data.text != null && data.text!.trim().isNotEmpty) {
       final text = data.text!.trim();
       final lines = text.split('\n');
