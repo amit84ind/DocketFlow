@@ -29,10 +29,33 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSettingsAndData();
-    _listenToNotifications();
-    _checkNotificationPermissionStatus();
-    _checkPendingSharedText();
+    _safeInit();
+  }
+
+  void _safeInit() async {
+    try {
+      await _loadSettingsAndData();
+    } catch (e) {
+      debugPrint("Error loading settings and data: $e");
+    }
+
+    try {
+      _listenToNotifications();
+    } catch (e) {
+      debugPrint("Error listening to notifications: $e");
+    }
+
+    try {
+      await _checkNotificationPermissionStatus();
+    } catch (e) {
+      debugPrint("Error checking notification permissions: $e");
+    }
+
+    try {
+      await _checkPendingSharedText();
+    } catch (e) {
+      debugPrint("Error checking pending shared text: $e");
+    }
   }
 
   Future<void> _checkPendingSharedText() async {
@@ -138,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _loadSettingsAndData() async {
+  Future<void> _loadSettingsAndData() async {
     final prefs = await SharedPreferences.getInstance();
     _autoCleanup = prefs.getBool('auto_cleanup') ?? true;
 
