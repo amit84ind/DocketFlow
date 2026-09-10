@@ -87,15 +87,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openNotificationSettings() async {
     try {
-      await _methodChannel.invokeMethod('openNotificationSettings');
-      await Future.delayed(const Duration(seconds: 1));
-      _checkNotificationPermissionStatus();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Unable to open notification settings: $e")),
-        );
+      final res = await _methodChannel.invokeMethod('openNotificationSettings');
+      if (res != true) {
+        _showSmartEmailImportModal();
+      } else {
+        await Future.delayed(const Duration(seconds: 1));
+        _checkNotificationPermissionStatus();
       }
+    } catch (_) {
+      _showSmartEmailImportModal();
     }
   }
 
@@ -573,21 +573,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                   const SizedBox(height: 8),
 
-                                  // Details Grid
-                                  Wrap(
-                                    spacing: 12,
-                                    runSpacing: 4,
+                                  // Details List
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      _iconTag(Icons.calendar_today, item.date, Colors.blue),
-                                      _iconTag(Icons.location_on, item.location, Colors.redAccent),
+                                      _infoRow(Icons.calendar_today, "Date", item.date, Colors.blue),
+                                      _infoRow(Icons.location_on, "Place", item.location, Colors.redAccent),
                                       if (item.vendorName != 'Not Specified')
-                                        _iconTag(Icons.store, "Vendor: ${item.vendorName}", Colors.orange),
+                                        _infoRow(Icons.store, "Vendor", item.vendorName, Colors.orange),
                                       if (item.clientName != 'Not Specified')
-                                        _iconTag(Icons.business, "Client: ${item.clientName}", Colors.purple),
+                                        _infoRow(Icons.business, "Client", item.clientName, Colors.purple),
                                       if (item.itemDetails != 'General Inspection')
-                                        _iconTag(Icons.inventory_2, "Item: ${item.itemDetails}", Colors.teal),
+                                        _infoRow(Icons.inventory_2, "Item", item.itemDetails, Colors.teal),
                                       if (item.attachments != 'No attachments detected')
-                                        _iconTag(Icons.attach_file, item.attachments, Colors.indigo),
+                                        _infoRow(Icons.attach_file, "Attachments", item.attachments, Colors.indigo),
                                     ],
                                   ),
                                 ],
@@ -604,17 +603,32 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _iconTag(IconData icon, String text, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
-        ),
-      ],
+  Widget _infoRow(IconData icon, String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: RichText(
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              text: TextSpan(
+                style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
+                children: [
+                  TextSpan(
+                    text: "$label: ",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
