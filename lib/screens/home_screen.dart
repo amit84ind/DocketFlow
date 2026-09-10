@@ -110,16 +110,45 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openNotificationSettings() async {
     try {
-      final res = await _methodChannel.invokeMethod('openNotificationSettings');
-      if (res != true) {
-        _showSmartEmailImportModal();
-      } else {
-        await Future.delayed(const Duration(seconds: 1));
-        _checkNotificationPermissionStatus();
+      // Auto-detect if clipboard has actual Outlook email content
+      final data = await Clipboard.getData(Clipboard.kText);
+      if (data != null && data.text != null && data.text!.trim().length > 15) {
+        final text = data.text!.trim();
+        final lines = text.split('\n');
+        final subject = lines.first;
+        final body = lines.length > 1 ? lines.sublist(1).join('\n') : text;
+
+        final item = ParserService.parsePayload(
+          subject,
+          body,
+          DateTime.now().millisecondsSinceEpoch,
+          source: 'Outlook',
+        );
+
+        await DBHelper.instance.insertInspection(item);
+        _loadSettingsAndData();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text("Retracted '${item.title}' from Clipboard!")),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
       }
-    } catch (_) {
-      _showSmartEmailImportModal();
-    }
+    } catch (_) {}
+
+    // Fallback to open modal sheet
+    _showSmartEmailImportModal();
   }
 
   void _listenToNotifications() {
@@ -334,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showSmartEmailImportModal,
         icon: const Icon(Icons.auto_awesome),
-        label: const Text("Smart Import Mail"),
+        label: const Text("Retract Outlook Mail"),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
       ),
@@ -367,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         _isNotificationServiceActive
                             ? "Outlook Auto-Sync Active"
-                            : "Enable Outlook Mail Reader",
+                            : "Outlook Mail Retractor Ready",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -377,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         _isNotificationServiceActive
                             ? "Automatically retracting inspection dockets from Outlook emails"
-                            : "Tap to grant notification listener access for Outlook",
+                            : "Tap to retract actual email details copied from Outlook",
                         style: const TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
@@ -394,7 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     minimumSize: Size.zero,
                   ),
                   child: Text(
-                    _isNotificationServiceActive ? "Import Mail" : "Enable",
+                    _isNotificationServiceActive ? "Import Mail" : "Retract Mail",
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 )
@@ -470,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          "Incoming Outlook emails will auto-appear,\nor use 'Smart Import Mail' to paste email details.",
+                          "Incoming Outlook emails will auto-appear,\nor use 'Retract Outlook Mail' to extract email details.",
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey, fontSize: 13),
                         ),
@@ -478,7 +507,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         OutlinedButton.icon(
                           onPressed: _showSmartEmailImportModal,
                           icon: const Icon(Icons.add),
-                          label: const Text("Smart Import Outlook Mail"),
+                          label: const Text("Retract Outlook Mail"),
                         )
                       ],
                     ),
@@ -656,7 +685,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Modal Sheet for Smart Importing / Retracting Outlook Email
+// Modal Sheet for Retracting Actual Outlook Email
 class _SmartEmailImportSheet extends StatefulWidget {
   final Function(InspectionItem) onSave;
 
@@ -676,6 +705,57 @@ class _SmartEmailImportSheetState extends State<_SmartEmailImportSheet> {
     super.initState();
     _subjectController.addListener(_updatePreview);
     _bodyController.addListener(_updatePreview);
+    _autoCheckClipboard();
+  }
+
+  Future<void> _autoCheckClipboard() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kText);
+      if (data != null && data.text != null && data.text!.trim().length > 10) {
+        final text = data.text!.trim();
+        final lines = text.split('\n');
+        final subject = lines.first;
+        final body = lines.length > 1 ? lines.sublist(1).join('\n') : text;
+
+        setState(() {
+          _subjectController.text = subject;
+          _bodyController.text = body;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kText);
+    if (data != null && data.text != null && data.text!.trim().isNotEmpty) {
+      final text = data.text!.trim();
+      final lines = text.split('\n');
+      final subject = lines.first;
+      final body = lines.length > 1 ? lines.sublist(1).join('\n') : text;
+
+      setState(() {
+        _subjectController.text = subject;
+        _bodyController.text = body;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Auto-pasted actual Outlook mail from Clipboard!"),
+            backgroundColor: Colors.blueAccent,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Clipboard is empty. Copy an email from Outlook first!"),
+          ),
+        );
+      }
+    }
   }
 
   void _updatePreview() {
@@ -697,11 +777,6 @@ class _SmartEmailImportSheetState extends State<_SmartEmailImportSheet> {
     }
   }
 
-  void _loadSample(String sampleTitle, String sampleBody) {
-    _subjectController.text = sampleTitle;
-    _bodyController.text = sampleBody;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -718,7 +793,7 @@ class _SmartEmailImportSheetState extends State<_SmartEmailImportSheet> {
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_awesome, color: Colors.blueAccent),
+                const Icon(Icons.mark_email_read, color: Colors.blueAccent),
                 const SizedBox(width: 8),
                 const Text(
                   "Retract Outlook Email Info",
@@ -732,38 +807,30 @@ class _SmartEmailImportSheetState extends State<_SmartEmailImportSheet> {
               ],
             ),
             const Text(
-              "Paste Outlook email text below or tap a sample to see smart extraction in action.",
+              "Copy any email in Microsoft Outlook and tap below to retract actual inspection details automatically.",
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
-            // Quick Samples
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  ActionChip(
-                    avatar: const Icon(Icons.flash_on, size: 14, color: Colors.amber),
-                    label: const Text("Sample 1: Site Audit"),
-                    onPressed: () => _loadSample(
-                      "Inspection Schedule - Sector 62 Plant",
-                      "Dear Team,\nInspection Date: 18/11/2024\nPlace: Plot 42, Sector 62 Industrial Yard\nVendor: L&T Construction\nClient: Apex Infrastructure\nItem: High Voltage Transformer Unit\nAttachments: Safety_Specs.pdf, Layout.dwg\nPlease complete compliance review.",
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  ActionChip(
-                    avatar: const Icon(Icons.warning_amber, size: 14, color: Colors.redAccent),
-                    label: const Text("Sample 2: URGENT Equipment Visit"),
-                    onPressed: () => _loadSample(
-                      "URGENT: Safety Visit & Quality Check",
-                      "Site Visit Date: Tomorrow\nLocation: Facility Building B, Plant 3\nSupplier: Siemens Engineering\nCustomer: Metro Rail Corp\nEquipment: Hydraulic Lift Pump\nAttached: Audit_Report_2024.pdf",
-                    ),
-                  ),
-                ],
+            // Prominent Auto Paste Button
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: _pasteFromClipboard,
+                icon: const Icon(Icons.content_paste_go, color: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade700,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                label: const Text(
+                  "Paste Copied Outlook Email",
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15),
+                ),
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
             TextField(
               controller: _subjectController,
@@ -779,7 +846,7 @@ class _SmartEmailImportSheetState extends State<_SmartEmailImportSheet> {
               controller: _bodyController,
               maxLines: 4,
               decoration: const InputDecoration(
-                labelText: "Email Body / Details (Paste from Outlook)",
+                labelText: "Email Body / Details (Actual Outlook Mail)",
                 border: OutlineInputBorder(),
               ),
             ),
