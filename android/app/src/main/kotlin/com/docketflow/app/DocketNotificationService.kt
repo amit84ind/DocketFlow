@@ -10,7 +10,7 @@ class DocketNotificationService : NotificationListenerService() {
         if (sbn == null) return
         val packageName = sbn.packageName ?: return
 
-        // Intercept Outlook and Gmail
+        // Intercept Outlook and Gmail notifications automatically
         val isOutlook = packageName == "com.microsoft.office.outlook"
         val isGmail = packageName == "com.google.android.gm"
 
@@ -21,14 +21,8 @@ class DocketNotificationService : NotificationListenerService() {
             val bigTextStr = extras.getCharSequence("android.bigText")?.toString() ?: ""
 
             val contentToAnalyze = if (bigTextStr.isNotEmpty()) bigTextStr else textStr
-            val fullPayload = "$title $contentToAnalyze".lowercase()
 
-            val triggers = listOf(
-                "inspection", "audit", "site visit", "monitoring", "compliance", "survey",
-                "docket", "ticket", "work order", "dispatch", "schedule", "review", "checklist"
-            )
-
-            if (triggers.any { fullPayload.contains(it) }) {
+            if (title.isNotEmpty() || contentToAnalyze.isNotEmpty()) {
                 val broadcast = Intent("com.docketflow.NEW_DOCKET_DETECTED")
                 broadcast.putExtra("title", title)
                 broadcast.putExtra("text", contentToAnalyze)

@@ -110,45 +110,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openNotificationSettings() async {
     try {
-      // Auto-detect if clipboard has actual Outlook email content
-      final data = await Clipboard.getData(Clipboard.kText);
-      if (data != null && data.text != null && data.text!.trim().length > 15) {
-        final text = data.text!.trim();
-        final lines = text.split('\n');
-        final subject = lines.first;
-        final body = lines.length > 1 ? lines.sublist(1).join('\n') : text;
-
-        final item = ParserService.parsePayload(
-          subject,
-          body,
-          DateTime.now().millisecondsSinceEpoch,
-          source: 'Outlook',
-        );
-
-        await DBHelper.instance.insertInspection(item);
-        _loadSettingsAndData();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text("Retracted '${item.title}' from Clipboard!")),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return;
-      }
-    } catch (_) {}
-
-    // Fallback to open modal sheet
-    _showSmartEmailImportModal();
+      await _methodChannel.invokeMethod('openNotificationSettings');
+      await Future.delayed(const Duration(seconds: 1));
+      _checkNotificationPermissionStatus();
+    } catch (e) {
+      debugPrint("Error opening notification settings: $e");
+    }
   }
 
   void _listenToNotifications() {
@@ -395,8 +362,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Text(
                         _isNotificationServiceActive
-                            ? "Outlook Auto-Sync Active"
-                            : "Outlook Mail Retractor Ready",
+                            ? "Outlook Auto-Retractor Active"
+                            : "Enable Outlook Auto-Retractor",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -405,17 +372,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Text(
                         _isNotificationServiceActive
-                            ? "Automatically retracting inspection dockets from Outlook emails"
-                            : "Tap to retract actual email details copied from Outlook",
+                            ? "100% Automated: Auto-extracting all incoming Outlook emails"
+                            : "Tap 'Enable Access' once to allow auto-extracting Outlook emails",
                         style: const TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: _isNotificationServiceActive
-                      ? _showSmartEmailImportModal
-                      : _openNotificationSettings,
+                  onPressed: _openNotificationSettings,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black87,
@@ -423,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     minimumSize: Size.zero,
                   ),
                   child: Text(
-                    _isNotificationServiceActive ? "Import Mail" : "Retract Mail",
+                    _isNotificationServiceActive ? "Active" : "Enable Access",
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 )
